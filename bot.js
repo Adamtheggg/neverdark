@@ -132,7 +132,7 @@ async function incoming(m) {
     }
   }
 
-  if (t === '/buyer') { if (!p) db.people[id] = { id, name: m.from.first_name || 'buyer', credit: 0, blocked: false }; db.people[id].buyer = true; keep(); return say(id, openLine(), menu()); }
+  if (t === '/buyer') { if (!db.people[id]) db.people[id] = { id, name: m.from.first_name || 'buyer', credit: 0, blocked: false }; db.people[id].buyer = true; keep(); return say(id, openLine(), menu()); }
   if (t === '/boss') { if (p) { p.buyer = false; keep(); } return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu()); }
   if (boss(id) && t === '/admin') return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
 
