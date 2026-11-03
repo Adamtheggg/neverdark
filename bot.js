@@ -1,5 +1,6 @@
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -191,9 +192,10 @@ async function tapped(cb) {
   if (d === 'vouch') return edit('<b>VOUCHES</b>\n\nReal feedback goes up in the group. We do not chase reviews.', menu());
   if (d === 'info') return edit('<b>POSTAGE</b>\n\nPosted out tracked, next working day.\n\n<b>PAYMENT</b>\n\nCrypto, bank transfer or Remitly. The details come straight after you order.\n\n<b>AFTER PAYING</b>\n\nCard and PIN out same day. Then follow <b>How to use it</b>.', menu());
   if (d === 'menu') return edit(openLine(), menu());
-  if (d === 'shop') return p && edit('<b>PICK YOUR TIER</b>\n\n<b>Tap one 👇</b>', { inline_keyboard: tiers().map(t => [{ text: t.label + ' - ' + money(t.price) + (db.out[t.id] ? ' ❌' : ''), callback_data: 'pick:' + t.id }]).concat([[{ text: '⬅️  BACK', callback_data: 'menu' }]]) });
+  if (d === 'shop') return edit('<b>PICK YOUR TIER</b>\n\n<b>Tap one 👇</b>', { inline_keyboard: tiers().map(t => [{ text: t.label + ' - ' + money(t.price) + (db.out[t.id] ? ' ❌' : ''), callback_data: 'pick:' + t.id }]).concat([[{ text: '⬅️  BACK', callback_data: 'menu' }]]) });
 
   if (d.indexOf('pick:') === 0) {
+    if (db.busy) return say(cb.message.chat.id, '🛑 Jiffy is on a break right now. Message again shortly and I will sort you out.');
     const t = tiers().find(x => x.id === d.slice(5));
     if (!p || !t) return say(cb.message.chat.id, 'Send /start first 👇', menu());
     if (db.out[t.id]) return say(cb.message.chat.id, t.label + ' is sold out right now.');
@@ -210,6 +212,7 @@ async function tapped(cb) {
     wait[id] = null;
     const howName = d.slice(4) === 'crypto' ? 'Crypto' : d.slice(4) === 'bank' ? 'Bank transfer' : 'Remitly';
     const t = tiers().find(x => x.id === w.tier);
+    if (!t) return say(id, 'Something went wrong there. Send /start and try again.');
     const o = { code: newCode(), who: id, name: w.name, tier: w.tier, label: t.label, price: t.price, address: w.addr || '', how: howName, state: 'new', when: Date.now() };
     db.orders.push(o); keep();
     await say(id, '✅ <b>ORDER ' + o.code + '</b>\n\n' + t.label + ' - ' + money(t.price) + '\nBy <b>' + howName + '</b>');
