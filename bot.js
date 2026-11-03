@@ -1,4 +1,5 @@
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -241,7 +242,12 @@ async function tapped(cb) {
     return api('editMessageText', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, text: cb.message.text + '\n\n<b>▶  ' + state.toUpperCase() + '</b>', parse_mode: 'HTML', reply_markup: kb }).catch(() => {});
   }
 
-  if (d === 'vouchit') { wait[id] = { what: 'voucher' }; return say(cb.message.chat.id, 'One line about it and I will post it up 🙏'); }
+  if ((d.indexOf('item:') === 0 || d.indexOf('qty:') === 0) && String(cb.message.chat.id) === GROUP) {
+ api('deleteMessage', { chat_id: cb.message.chat.id, message_id: cb.message.message_id }).catch(() => {});
+ return say(cb.from.id, 'That one was an old demo. The current menu is above 👆', menu());
+ }
+
+ if (d === 'vouchit') { wait[id] = { what: 'voucher' }; return say(cb.message.chat.id, 'One line about it and I will post it up 🙏'); }
 
   if (d === 'toboss') return say(cb.message.chat.id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
   if (d.indexOf('b:') !== 0 || !isBoss) return;
