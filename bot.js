@@ -2,6 +2,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -302,6 +303,7 @@ async function incoming(m) {
   if (t === '/orders') return mine(chat, id);
 
   if (isBoss && (t === '/stats' || t === '/digest')) return say(chat, statsText(), bossMenu());
+  if (isBoss) return say(chat, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
   say(chat, 'Tap below 👇', menu());
 }
 
@@ -388,7 +390,7 @@ async function track(chat, code) {
 
 async function mine(chat, id) {
   const list = Object.values(db.orders).filter(o => o.who === id).sort((a, b) => b.when - a.when).slice(0, 8);
-  if (!list.length) return say(chat, 'No orders yet. Tap /start to place one.');
+  if (!list.length) return say(chat, 'No orders yet. ' + (boss(id) ? 'Use /buyer to place a test one.' : 'Tap /start to place one.'));
   const rows = list.map(o => [{ text: o.code + ' · ' + (STEPS[o.state] || o.state), callback_data: 'mine:' + o.code }]);
   return say(chat, '<b>YOUR ORDERS</b>', { inline_keyboard: rows });
 }
