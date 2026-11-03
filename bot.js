@@ -1,5 +1,6 @@
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -571,6 +572,7 @@ setInterval(beat, 300000);
   restoring = true; const had = await loadState(); restoring = false;
   tidy();
   if (had) firstBoot = false;
+  saveState();
 
   http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/plain' });
