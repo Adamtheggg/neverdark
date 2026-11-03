@@ -1,4 +1,5 @@
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -44,6 +45,24 @@ const fresh = () => ({
 
 let db; let firstBoot = false;
 try { db = Object.assign(fresh(), JSON.parse(fs.readFileSync(DB, 'utf8'))); } catch { db = fresh(); firstBoot = true; }
+
+function tidy() {
+  if (Array.isArray(db.orders)) { const m = {}; for (const o of db.orders) if (o && o.code) m[o.code] = o; db.orders = m; }
+  if (!db.orders || typeof db.orders !== 'object') db.orders = {};
+  for (const k of Object.keys(db.orders)) {
+    const o = db.orders[k];
+    if (!o.addr) o.addr = o.address || '';
+    if (!o.name) o.name = 'unknown';
+    if (!o.how) o.how = 'crypto';
+    if (!o.state) o.state = 'new';
+    if (!o.when) o.when = now();
+    if (!o.code) o.code = k;
+    if (o.moved == null) o.moved = o.when;
+  }
+  if (!db.drafts || typeof db.drafts !== 'object') db.drafts = {};
+  if (!db.stock) db.stock = { t1: -1, t2: -1, t3: -1, t4: -1 };
+  if (!db.seq) db.seq = 1000;
+}
 
 let writing = false;
 const keep = () => {
@@ -550,7 +569,8 @@ setInterval(beat, 300000);
   ]});
 
   restoring = true; const had = await loadState(); restoring = false;
-  if (had) firstBoot = false; else if (!BOSS[0]) firstBoot = false;
+  tidy();
+  if (had) firstBoot = false;
 
   http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/plain' });
