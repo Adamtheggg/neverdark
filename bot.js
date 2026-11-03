@@ -1,6 +1,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -12,6 +13,9 @@ const API = 'https://api.telegram.org/bot' + TOKEN;
 const BOSS = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 const GROUP = process.env.GROUP_ID || '';
 const DB = path.join(__dirname, 'data.json');
+const STORE = process.env.STATE_CHAT || '';
+const TAG = 'ND_STATE:';
+let storeMsg = 0, storeBusy = false, restoring = false;
 
 const boss = id => BOSS.includes(String(id));
 const e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -43,7 +47,49 @@ let writing = false;
 const keep = () => { if (writing) return; writing = true; setTimeout(() => {
   writing = false;
   try { fs.writeFileSync(DB + '.tmp', JSON.stringify(db, null, 1)); fs.renameSync(DB + '.tmp', DB); } catch {}
+  saveState();
 }, 300); };
+
+const settingsJson = () => TAG + JSON.stringify({ price: db.price, out: db.out, busy: db.busy, pay: db.pay, photos: db.photos, appeal: db.appeal, redirect: db.redirect });
+
+async function saveState() {
+  if (!STORE || storeBusy || restoring) return;
+  storeBusy = true;
+  try {
+    let body = { chat_id: STORE, text: settingsJson() };
+    if (storeMsg) {
+      const rr = await api('editMessageText', Object.assign({ message_id: storeMsg }, body));
+      if (!rr || !rr.ok) storeMsg = 0;
+    }
+    if (!storeMsg) {
+      const rr = await api('sendMessage', body);
+      if (rr && rr.ok) {
+        storeMsg = rr.result.message_id;
+        await api('pinChatMessage', { chat_id: STORE, message_id: storeMsg, disable_notification: true });
+      }
+    }
+  } catch {}
+  storeBusy = false;
+}
+
+async function loadState() {
+  if (!STORE) return false;
+  try {
+    const rr = await api('getChat', { chat_id: STORE });
+    const m = rr && rr.ok && rr.result && rr.result.pinned_message;
+    if (!m || !m.text || m.text.indexOf(TAG) !== 0) return false;
+    storeMsg = m.message_id;
+    const j = JSON.parse(m.text.slice(TAG.length));
+    if (j.price) Object.assign(db.price, j.price);
+    if (j.pay) Object.assign(db.pay, j.pay);
+    if (j.photos) Object.assign(db.photos, j.photos);
+    if (j.out) db.out = j.out;
+    if (typeof j.busy === 'boolean') db.busy = j.busy;
+    if (j.appeal) db.appeal = j.appeal;
+    if (j.redirect) db.redirect = j.redirect;
+    return true;
+  } catch { return false; }
+}
 
 const q = []; let busySend = false;
 const say = (to, text, extra) => new Promise(r => { q.push({ to, text, extra, r }); pump(); });
@@ -304,8 +350,11 @@ async function loop() {
   { command: 'backup', description: 'Save settings' },
     { command: 'id', description: 'Chat id' }
   ]});
+  restoring = true;
+  if (await loadState()) firstBoot = false;
+  restoring = false;
   http.createServer((_, r) => r.end('ok')).listen(process.env.PORT || 3000);
-  if (firstBoot && BOSS[0]) say(BOSS[0], 'WARNING: settings were reset by the deploy. Paste your /backup back with /restore.');
+  if (firstBoot && BOSS[0]) say(BOSS[0], 'WARNING: settings were reset by the deploy and there was no saved copy to read. Paste your /backup back with /restore.');
  console.log('running @' + BOTNAME + ' boss=' + (BOSS.join(',') || 'NONE') + ' group=' + (GROUP || 'NONE'));
   loop();
 })();
