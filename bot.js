@@ -4,6 +4,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -146,7 +147,10 @@ const openLine = () => '👋 <b>Never Dark</b>\n\nClone cards. Blank, verified, 
 async function incoming(m) {
   const id = String(m.from.id);
   const p = db.people[id];
-  const t = (m.text || '').trim();
+  const raw = (m.text || '').trim();
+  const t = raw.replace(/@\w+$/i, '').trim();
+  const chat = m.chat.id;
+  const out = boss(id) ? chat : id;
 
   if (m.photo && boss(id)) {
     const cap = (m.caption || '').toUpperCase();
@@ -174,35 +178,35 @@ async function incoming(m) {
  if (j.pay) Object.assign(db.pay, j.pay);
  if (j.photos) Object.assign(db.photos, j.photos);
  keep();
- return say(id, 'Restored.', bossMenu());
- } catch { return say(id, 'That did not parse.'); }
+ return say(out, 'Restored.', bossMenu());
+ } catch { return say(out, 'That did not parse.'); }
  }
  if (w.what === 'voucher') { wait[id] = null; if (GROUP) say(GROUP, '⭐ <b>Vouch</b>\n“' + e(t) + '”\n<i>from a buyer</i>'); return say(id, 'Thank you 🙏'); }
     if (w.what === 'paydetail') {
  wait[id] = null;
  db.pay[w.which] = t; keep();
- return say(id, '✅ Saved for <b>' + PAYNAME[w.which] + '</b>.\n\nBuyers get this the second they pick that method.', bossMenu());
+ return say(out, '✅ Saved for <b>' + PAYNAME[w.which] + '</b>.\n\nBuyers get this the second they pick that method.', bossMenu());
  }
  if (w.what === 'price') {
       wait[id] = null;
       const n = parseFloat(t.replace(/[^0-9.]/g, ''));
       if (isNaN(n)) return say(id, 'Just the number please. Like 250');
       db.price[w.which] = n; keep();
-      return say(id, '✅ Now <b>' + money(n) + '</b>', bossMenu());
+      return say(out, '✅ Now <b>' + money(n) + '</b>', bossMenu());
     }
     if (w.what === 'all') {
       wait[id] = null;
       const all = Object.keys(db.people).filter(x => !db.people[x].blocked);
-      say(id, 'Sending to ' + all.length + '...');
+      say(out, 'Sending to ' + all.length + '...');
       let ok = 0;
       for (const x of all) { if (await say(x, t)) ok++; }
-      return say(id, '✅ Sent to ' + ok);
+      return say(out, '✅ Sent to ' + ok);
     }
   }
 
-  if (t === '/buyer') { if (!db.people[id]) db.people[id] = { id, name: m.from.first_name || 'buyer', credit: 0, blocked: false }; db.people[id].buyer = true; keep(); return say(id, openLine(), menu()); }
-  if (t === '/boss') { if (p) { p.buyer = false; keep(); } return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu()); }
-  if (boss(id) && t === '/admin') return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
+  if (t === '/buyer') { if (!db.people[id]) db.people[id] = { id, name: m.from.first_name || 'buyer', credit: 0, blocked: false }; db.people[id].buyer = true; keep(); return say(out, openLine(), menu()); }
+  if (t === '/boss') { if (p) { p.buyer = false; keep(); } return say(out, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu()); }
+  if (boss(id) && (t === '/admin' || t === '/menu')) return say(out, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
 
   if (t.indexOf('/start') === 0) {
     if (!p) {
@@ -214,23 +218,23 @@ async function incoming(m) {
       }
       keep();
     }
-    if (db.people[id].blocked) return say(id, 'You are on the list. Message the main account.');
-    if (boss(id) && !db.people[id].buyer) return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
-    return say(id, openLine(), menu());
+    if (db.people[id].blocked) return say(chat, 'You are on the list. Message the main account.');
+    if (boss(id) && !db.people[id].buyer) return say(chat, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
+    return say(chat, openLine(), menu());
   }
-  if (t === '/id') return say(id, 'Chat id: <code>' + m.chat.id + '</code>');
+  if (t === '/id') return say(chat, 'Chat id: <code>' + m.chat.id + '</code>');
   if (boss(id) && t === '/broadcast') return say(id, 'Use /admin then MESSAGE EVERYONE.');
-  if (boss(id) && t === '/photos') return say(id, '<b>TIER PHOTOS</b>\n\n' + tiers().map(x => (db.photos[x.id] ? '✅ ' : '❌ ') + x.label).join('\n') + '\n\n<b>Send a photo here with the tier name as the caption.</b> Like: STARTER');
-  if (boss(id) && t === '/backup') return say(id, 'BACKUP - save this somewhere, send it back with /restore after any redeploy:\n\n<code>' + e(JSON.stringify({ price: db.price, pay: db.pay, photos: db.photos })) + '</code>');
-  if (boss(id) && t === '/restore') { wait[id] = { what: 'restore' }; return say(id, 'Paste the backup line.'); }
-  if (boss(id) && t === '/setpay') return say(id, '<b>PAYMENT DETAILS</b>\n\n' + ['crypto', 'bank', 'remitly'].map(x => '<b>' + PAYNAME[x] + '</b>: ' + (db.pay[x] ? 'set ✅' : 'not set ❌')).join('\n') + '\n\n<b>Tap the one to set 👇</b>', { inline_keyboard: ['crypto', 'bank', 'remitly'].map(x => [{ text: (db.pay[x] ? '✅ ' : '') + PAYNAME[x], callback_data: 'b:pd:' + x }]).concat([[{ text: '⬅️  BACK', callback_data: 'b:home' }]]) });
+  if (boss(id) && t === '/photos') return say(out, '<b>TIER PHOTOS</b>\n\n' + tiers().map(x => (db.photos[x.id] ? '✅ ' : '❌ ') + x.label).join('\n') + '\n\n<b>Send a photo here with the tier name as the caption.</b> Like: STARTER');
+  if (boss(id) && t === '/backup') return say(out, 'BACKUP - save this somewhere, send it back with /restore after any redeploy:\n\n<code>' + e(JSON.stringify({ price: db.price, pay: db.pay, photos: db.photos })) + '</code>');
+  if (boss(id) && t === '/restore') { wait[id] = { what: 'restore' }; return say(out, 'Paste the backup line.'); }
+  if (boss(id) && t === '/setpay') return say(out, '<b>PAYMENT DETAILS</b>\n\n' + ['crypto', 'bank', 'remitly'].map(x => '<b>' + PAYNAME[x] + '</b>: ' + (db.pay[x] ? 'set ✅' : 'not set ❌')).join('\n') + '\n\n<b>Tap the one to set 👇</b>', { inline_keyboard: ['crypto', 'bank', 'remitly'].map(x => [{ text: (db.pay[x] ? '✅ ' : '') + PAYNAME[x], callback_data: 'b:pd:' + x }]).concat([[{ text: '⬅️  BACK', callback_data: 'b:home' }]]) });
   if (!p) return;
 
   if (/^ND-\d{4}$/i.test(t)) {
     const o = getOrder(t.toUpperCase());
     return say(id, o ? o.code + ' - ' + o.label + '\n\nStatus: <b>' + o.state + '</b>' : 'No order with that number.');
   }
-  say(id, 'Tap below 👇', menu());
+  say(chat, 'Tap below 👇', menu());
 }
 
 async function tapped(cb) {
