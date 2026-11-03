@@ -23,9 +23,13 @@ const TIERS = [
 
 const HOWTO = '<b>HOW TO CASH OUT</b>\n\n1. Insert ATM card\n2. Select the language\n3. Enter 4 digit PIN\n4. Select your transaction\n5. Select your account\n6. Enter the withdrawal amount\n7. Collect the cash\n8. Take a printed receipt\n\n<b>Only do responsible carding.</b>';
 
+const PHOTOS = { t1: '', t2: '', t3: '', t4: '' };
+const PAYNAME = { crypto: 'Crypto', bank: 'Bank transfer', remitly: 'Remitly' };
 const fresh = () => ({
   price: { t1: 200, t2: 350, t3: 500, t4: 700 },
   out: {}, busy: false, people: {}, orders: [],
+  pay: { crypto: '', bank: '', remitly: '' },
+  photos: { t1: '', t2: '', t3: '', t4: '' },
   appeal: 'Hi, my account was restricted for duplicate content. I make all my own posts. Please review - I think this was a mistake. Thanks.',
   redirect: 'Account blocked. Still selling, same person. Message me here @yourbackup'
 });
@@ -72,6 +76,7 @@ const bossMenu = () => ({ inline_keyboard: [
   [{ text: '💰  MY PRICES', callback_data: 'b:prices' }],
   [{ text: '📦  SOLD OUT', callback_data: 'b:out' }],
   [{ text: db.busy ? '✅  BACK ON' : '🛑  TAKE A BREAK', callback_data: 'b:busy' }],
+  [{ text: '💷  PAYMENT DETAILS', callback_data: 'b:pay' }],
   [{ text: '📣  MESSAGE EVERYONE', callback_data: 'b:all' }],
   [{ text: '📊  HOW MANY TODAY', callback_data: 'b:count' }],
   [{ text: '🚨  ACCOUNT GOT BLOCKED', callback_data: 'b:ban' }]
@@ -84,18 +89,32 @@ async function incoming(m) {
   const id = String(m.from.id);
   const p = db.people[id];
   const t = (m.text || '').trim();
+
+  if (m.photo && boss(id)) {
+    const cap = (m.caption || '').toUpperCase();
+    const tier = tiers().find(x => cap.indexOf(x.label) === 0 || cap === x.id.toUpperCase());
+    const fid = m.photo[m.photo.length - 1].file_id;
+    if (!tier) return say(id, 'Nearly. Send it again with the tier name as the caption. Like: STARTER');
+    db.photos[tier.id] = fid; keep();
+    return say(id, '✅ Photo saved for <b>' + tier.label + '</b>.');
+  }
   if (!t) return;
 
   const w = wait[id];
   if (w) {
-    if (w.what === 'name') { wait[id] = { what: 'addr', tier: w.tier }; return say(id, 'Got it. Now your <b>full postal address</b> with postcode.'); }
+    if (w.what === 'name') { wait[id] = { what: 'addr', tier: w.tier, name: t }; return say(id, 'Got it. Now your <b>full postal address</b> with postcode.'); }
     if (w.what === 'addr') { wait[id] = { what: 'pay', tier: w.tier, name: w.name, addr: t }; return say(id, '<b>How are you paying?</b>', { inline_keyboard: [
       [{ text: '₿  Crypto', callback_data: 'pay:crypto' }],
       [{ text: '🏦  Bank transfer', callback_data: 'pay:bank' }],
       [{ text: '💸  Remitly', callback_data: 'pay:remitly' }]
     ]}); }
     if (w.what === 'voucher') { wait[id] = null; if (GROUP) say(GROUP, '⭐ <b>Vouch</b>\n“' + e(t) + '”\n<i>from a buyer</i>'); return say(id, 'Thank you 🙏'); }
-    if (w.what === 'price') {
+    if (w.what === 'paydetail') {
+ wait[id] = null;
+ db.pay[w.which] = t; keep();
+ return say(id, '✅ Saved for <b>' + PAYNAME[w.which] + '</b>.\n\nBuyers get this the second they pick that method.', bossMenu());
+ }
+ if (w.what === 'price') {
       wait[id] = null;
       const n = parseFloat(t.replace(/[^0-9.]/g, ''));
       if (isNaN(n)) return say(id, 'Just the number please. Like 250');
@@ -130,6 +149,8 @@ async function incoming(m) {
   }
   if (t === '/id') return say(id, 'Chat id: <code>' + m.chat.id + '</code>');
   if (boss(id) && t === '/broadcast') return say(id, 'Use /admin then MESSAGE EVERYONE.');
+  if (boss(id) && t === '/photos') return say(id, '<b>TIER PHOTOS</b>\n\n' + tiers().map(x => (db.photos[x.id] ? '✅ ' : '❌ ') + x.label).join('\n') + '\n\n<b>Send a photo here with the tier name as the caption.</b> Like: STARTER');
+  if (boss(id) && t === '/setpay') return say(id, '<b>PAYMENT DETAILS</b>\n\n' + ['crypto', 'bank', 'remitly'].map(x => '<b>' + PAYNAME[x] + '</b>: ' + (db.pay[x] ? 'set ✅' : 'not set ❌')).join('\n') + '\n\n<b>Tap the one to set 👇</b>', { inline_keyboard: ['crypto', 'bank', 'remitly'].map(x => [{ text: (db.pay[x] ? '✅ ' : '') + PAYNAME[x], callback_data: 'b:pd:' + x }]).concat([[{ text: '⬅️  BACK', callback_data: 'b:home' }]]) });
   if (!p) return;
 
   if (/^ND-\d{4}$/i.test(t)) {
@@ -144,22 +165,25 @@ async function tapped(cb) {
   const d = cb.data || '';
   const p = db.people[id];
   const isBoss = boss(id);
-  const edit = (text, kb) => api('editMessageText', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, text, parse_mode: 'HTML', reply_markup: kb }).catch(() => {});
+  const edit = (text, kb) => api('editMessageText', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, text, parse_mode: 'HTML', reply_markup: kb }).then(r => (r && r.ok) ? r : api('editMessageCaption', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, caption: text, parse_mode: 'HTML', reply_markup: kb })).catch(() => {});
   api('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
 
   if (d === 'prices') return edit('<b>PRICES</b>\n\n' + tiers().map(t => '<b>' + t.label + '</b> - ' + money(t.price) + (db.out[t.id] ? '  ❌ SOLD OUT' : '') + '\n<i>cashes out ' + t.cash + '</i>').join('\n\n') + '\n\nAll posted out. Pay by crypto, bank or Remitly.', menu());
   if (d === 'how') return edit(HOWTO, menu());
   if (d === 'vouch') return edit('<b>VOUCHES</b>\n\nReal feedback goes up in the group. We do not chase reviews.', menu());
-  if (d === 'info') return edit('<b>POSTAGE</b>\n\nPosted out tracked, next working day.\n\n<b>PAYMENT</b>\n\nCrypto, bank transfer or Remitly. Jiffy messages you the details straight after you order.\n\n<b>AFTER PAYING</b>\n\nCard and PIN out same day. Then follow <b>How to use it</b>.', menu());
+  if (d === 'info') return edit('<b>POSTAGE</b>\n\nPosted out tracked, next working day.\n\n<b>PAYMENT</b>\n\nCrypto, bank transfer or Remitly. The details come straight after you order.\n\n<b>AFTER PAYING</b>\n\nCard and PIN out same day. Then follow <b>How to use it</b>.', menu());
   if (d === 'menu') return edit(openLine(), menu());
   if (d === 'shop') return p && edit('<b>PICK YOUR TIER</b>\n\n<b>Tap one 👇</b>', { inline_keyboard: tiers().map(t => [{ text: t.label + ' - ' + money(t.price) + (db.out[t.id] ? ' ❌' : ''), callback_data: 'pick:' + t.id }]).concat([[{ text: '⬅️  BACK', callback_data: 'menu' }]]) });
 
   if (d.indexOf('pick:') === 0) {
     const t = tiers().find(x => x.id === d.slice(5));
-    if (!p || !t) return;
+    if (!p || !t) return say(cb.message.chat.id, 'Send /start first 👇', menu());
     if (db.out[t.id]) return say(cb.message.chat.id, t.label + ' is sold out right now.');
     wait[id] = { what: 'name', tier: t.id };
-    return edit('<b>' + t.label + ' - ' + money(t.price) + '</b>\nCashes out <b>' + t.cash + '</b>\n\n<b>Send your full name.</b>', { inline_keyboard: [[{ text: '⬅️  BACK', callback_data: 'shop' }]] });
+    const head = '<b>' + t.label + ' - ' + money(t.price) + '</b>\nCashes out <b>' + t.cash + '</b>\n\n<b>Send your full name.</b>';
+    const back = { inline_keyboard: [[{ text: '⬅️  BACK', callback_data: 'shop' }]] };
+    if (db.photos[t.id]) { api('deleteMessage', { chat_id: cb.message.chat.id, message_id: cb.message.message_id }); return api('sendPhoto', { chat_id: cb.message.chat.id, photo: db.photos[t.id], caption: head, parse_mode: 'HTML', reply_markup: back }).catch(() => {}); }
+    return edit(head, back);
   }
 
   if (d.indexOf('pay:') === 0) {
@@ -170,7 +194,10 @@ async function tapped(cb) {
     const t = tiers().find(x => x.id === w.tier);
     const o = { code: newCode(), who: id, name: w.name, tier: w.tier, label: t.label, price: t.price, address: w.addr || '', how: howName, state: 'new', when: Date.now() };
     db.orders.push(o); keep();
-    await say(id, '✅ <b>ORDER ' + o.code + '</b>\n\n' + t.label + ' - ' + money(t.price) + '\nBy <b>' + howName + '</b>\n\nJiffy will message you the payment details as soon as possible. Once paid, send the proof and it goes out same day.');
+    await say(id, '✅ <b>ORDER ' + o.code + '</b>\n\n' + t.label + ' - ' + money(t.price) + '\nBy <b>' + howName + '</b>');
+    const det = db.pay[d.slice(4)];
+    if (det) await say(id, '💷 <b>PAY HERE - ' + howName.toUpperCase() + '</b>\n\n' + e(det) + '\n\nSend the proof once done and it goes out same day.');
+    else await say(id, 'Jiffy will message you the payment details as soon as possible. Once paid, send the proof and it goes out same day.');
     if (GROUP) say(GROUP, '🔔 <b>NEW ORDER ' + o.code + '</b>\n\n' + e(t.label) + ' - <b>' + money(t.price) + '</b>\n👤 ' + e(o.name) + '\n📍 ' + e(o.address) + '\n💳 ' + e(howName) + '\n\n<b>TAP WHAT IS HAPPENING 👇</b>', {
       reply_markup: { inline_keyboard: [
         [{ text: '✅  TAKE IT', callback_data: 'o:' + o.code + ':taken' }],
@@ -212,6 +239,8 @@ async function tapped(cb) {
     return edit('<b>TODAY</b>\n\nOrders: <b>' + today.length + '</b>\nDelivered: <b>' + today.filter(o => o.state === 'done').length + '</b>\nTook: <b>' + money(today.filter(o => o.state === 'done').reduce((s, o) => s + o.price, 0)) + '</b>', bossMenu());
   }
   if (k === 'ban') return edit('<b>IF YOU GET BLOCKED</b>\n\n<b>1. Bio on new account:</b>\n<i>' + e(db.redirect) + '</i>\n\n<b>2. Send to everyone:</b> MESSAGE EVERYONE, paste, send.\n\n<b>3. Appeal with:</b>\n<i>' + e(db.appeal) + '</i>', bossMenu());
+  if (k === 'pay') return edit('<b>PAYMENT DETAILS</b>\n\n' + ['crypto', 'bank', 'remitly'].map(x => '<b>' + PAYNAME[x] + '</b>: ' + (db.pay[x] ? '<i>' + e(db.pay[x]) + '</i>' : 'not set ❌')).join('\n\n') + '\n\n<b>Tap to set 👇</b>', { inline_keyboard: ['crypto', 'bank', 'remitly'].map(x => [{ text: (db.pay[x] ? '✅ ' : '') + PAYNAME[x], callback_data: 'b:pd:' + x }]).concat([[{ text: '⬅️  BACK', callback_data: 'b:home' }]]) });
+  if (d.indexOf('b:pd:') === 0) { const x = d.slice(5); if (!PAYNAME[x]) return; wait[id] = { what: 'paydetail', which: x }; return edit('<b>' + PAYNAME[x] + ' details?</b>\n\nSend the exact text buyers should see.'); }
   if (d.indexOf('b:p:') === 0) { const t = tiers().find(x => x.id === d.slice(4)); if (!t) return; wait[id] = { what: 'price', which: t.id }; return edit('<b>New price for ' + t.label + '?</b>\n\nJust the number. Like 250'); }
   if (d.indexOf('b:o:') === 0) {
     const t = tiers().find(x => x.id === d.slice(4));
@@ -242,6 +271,8 @@ async function loop() {
   await api('setMyCommands', { commands: [
     { command: 'start', description: 'Menu' },
     { command: 'admin', description: 'Boss panel' },
+  { command: 'setpay', description: 'Payment details' },
+  { command: 'photos', description: 'Tier photos' },
     { command: 'id', description: 'Chat id' }
   ]});
   http.createServer((_, r) => r.end('ok')).listen(process.env.PORT || 3000);
