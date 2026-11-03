@@ -1,6 +1,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -354,6 +355,7 @@ async function takeStep(id, w, t, m) {
       for (const k of ['price', 'pay', 'photos', 'stock']) if (j[k]) db[k] = j[k];
       if (j.appeal) db.appeal = j.appeal;
       if (j.redirect) db.redirect = j.redirect;
+    if (j.orders) db.orders = j.orders;
       keep();
       await say(chat, '✅ Restored.', bossMenu());
     } catch { await say(chat, 'That did not parse. Paste the whole line starting with {'); wait[id] = w; }
