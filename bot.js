@@ -79,7 +79,8 @@ const bossMenu = () => ({ inline_keyboard: [
   [{ text: '💷  PAYMENT DETAILS', callback_data: 'b:pay' }],
   [{ text: '📣  MESSAGE EVERYONE', callback_data: 'b:all' }],
   [{ text: '📊  HOW MANY TODAY', callback_data: 'b:count' }],
-  [{ text: '🚨  ACCOUNT GOT BLOCKED', callback_data: 'b:ban' }]
+  [{ text: '🚨  ACCOUNT GOT BLOCKED', callback_data: 'b:ban' }],
+  [{ text: '🛒  BACK TO BOSS', callback_data: 'toboss' }]
 ]});
 
 const wait = {};
@@ -131,6 +132,8 @@ async function incoming(m) {
     }
   }
 
+  if (t === '/buyer') { if (p) { p.buyer = true; keep(); } return say(id, openLine(), menu()); }
+  if (t === '/boss') { if (p) { p.buyer = false; keep(); } return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu()); }
   if (boss(id) && t === '/admin') return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
 
   if (t.indexOf('/start') === 0) {
@@ -144,7 +147,7 @@ async function incoming(m) {
       keep();
     }
     if (db.people[id].blocked) return say(id, 'You are on the list. Message the main account.');
-    if (boss(id)) return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
+    if (boss(id) && !db.people[id].buyer) return say(id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
     return say(id, openLine(), menu());
   }
   if (t === '/id') return say(id, 'Chat id: <code>' + m.chat.id + '</code>');
@@ -226,6 +229,7 @@ async function tapped(cb) {
 
   if (d === 'vouchit') { wait[id] = { what: 'voucher' }; return say(cb.message.chat.id, 'One line about it and I will post it up 🙏'); }
 
+  if (d === 'toboss') return say(cb.message.chat.id, '<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
   if (d.indexOf('b:') !== 0 || !isBoss) return;
   const k = d.slice(2);
   if (k === 'home') return edit('<b>WHAT DO YOU WANT TO DO?</b>', bossMenu());
