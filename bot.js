@@ -5,6 +5,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -108,13 +109,16 @@ async function pump() {
     const j = q.shift();
     try { j.r(await api('sendMessage', { chat_id: j.to, text: j.text, parse_mode: 'HTML', disable_web_page_preview: true, ...(j.extra || {}) })); }
     catch { j.r(null); }
+    await new Promise(r => setTimeout(r, 60 + Math.random() * 90));
     await new Promise(r => setTimeout(r, 80 + Math.random() * 120));
   }
   busySend = false;
 }
 async function api(method, body) {
-  const r = await fetch(API + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-  return r.json();
+  try {
+    const r = await fetch(API + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}), signal: AbortSignal.timeout(15000) });
+    return await r.json();
+  } catch { return { ok: false }; }
 }
 
 const tiers = () => TIERS.map(t => ({ ...t, price: db.price[t.id] }));
@@ -335,17 +339,26 @@ async function tapped(cb) {
   }
 }
 
-let BOTNAME = ''; let pos = 0;
+let BOTNAME = ''; let pos = 0; let lastBeat = Date.now();
+setInterval(() => {
+  if (Date.now() - lastBeat > 180000) {
+    console.log('poll stalled, restarting loop');
+    lastBeat = Date.now();
+    busySend = false;
+    loop();
+  }
+}, 60000);
 async function loop() {
   for (;;) {
     try {
-      const j = await (await fetch(API + '/getUpdates?timeout=30&offset=' + pos)).json();
+      const j = await (await fetch(API + '/getUpdates?timeout=30&offset=' + pos, { signal: AbortSignal.timeout(45000) })).json();
       for (const u of j.result || []) {
         pos = u.update_id + 1;
         try { if (u.message) await incoming(u.message); if (u.callback_query) await tapped(u.callback_query); }
         catch (err) { console.error(err.message); }
       }
     } catch { await new Promise(r => setTimeout(r, 2000)); }
+    lastBeat = Date.now();
   }
 }
 
