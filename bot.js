@@ -3,6 +3,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -51,7 +52,12 @@ const keep = () => { if (writing) return; writing = true; setTimeout(() => {
   saveState();
 }, 300); };
 
-const settingsJson = () => TAG + JSON.stringify({ price: db.price, out: db.out, busy: db.busy, pay: db.pay, photos: db.photos, appeal: db.appeal, redirect: db.redirect });
+const settingsJson = () => {
+  const base = { price: db.price, out: db.out, busy: db.busy, pay: db.pay, photos: db.photos, appeal: db.appeal, redirect: db.redirect };
+  let txt = TAG + JSON.stringify(Object.assign({ orders: db.orders.slice(-20) }, base));
+  if (txt.length > 3900) txt = TAG + JSON.stringify(base);
+  return txt;
+};
 
 async function saveState() {
   if (!STORE || storeBusy || restoring) return;
@@ -88,6 +94,7 @@ async function loadState() {
     if (typeof j.busy === 'boolean') db.busy = j.busy;
     if (j.appeal) db.appeal = j.appeal;
     if (j.redirect) db.redirect = j.redirect;
+    if (Array.isArray(j.orders) && j.orders.length) db.orders = j.orders;
     return true;
   } catch { return false; }
 }
