@@ -280,6 +280,6 @@ async function loop() {
     { command: 'id', description: 'Chat id' }
   ]});
   http.createServer((_, r) => r.end('ok')).listen(process.env.PORT || 3000);
-  console.log('running @' + BOTNAME);
+  console.log('running @' + BOTNAME + ' boss=' + (BOSS.join(',') || 'NONE') + ' group=' + (GROUP || 'NONE'));
   loop();
 })();
