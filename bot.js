@@ -89,12 +89,12 @@ async function incoming(m) {
   const w = wait[id];
   if (w) {
     if (w.what === 'name') { wait[id] = { what: 'addr', tier: w.tier }; return say(id, 'Got it. Now your <b>full postal address</b> with postcode.'); }
-    if (w.what === 'addr') { wait[id] = { what: 'pay', tier: w.tier, name: t }; return say(id, '<b>How are you paying?</b>', { inline_keyboard: [
+    if (w.what === 'addr') { wait[id] = { what: 'pay', tier: w.tier, name: w.name, addr: t }; return say(id, '<b>How are you paying?</b>', { inline_keyboard: [
       [{ text: '₿  Crypto', callback_data: 'pay:crypto' }],
       [{ text: '🏦  Bank transfer', callback_data: 'pay:bank' }],
       [{ text: '💸  Remitly', callback_data: 'pay:remitly' }]
     ]}); }
-    if (w.what === 'voucher') { wait[id] = null; if (GROUP) say(GROUP, '⭐ <b>Vouch</b>\n“' + e(t) + '”\n<i>' + e(p ? p.name : 'buyer') + '</i>'); return say(id, 'Thank you 🙏'); }
+    if (w.what === 'voucher') { wait[id] = null; if (GROUP) say(GROUP, '⭐ <b>Vouch</b>\n“' + e(t) + '”\n<i>from a buyer</i>'); return say(id, 'Thank you 🙏'); }
     if (w.what === 'price') {
       wait[id] = null;
       const n = parseFloat(t.replace(/[^0-9.]/g, ''));
@@ -168,7 +168,7 @@ async function tapped(cb) {
     wait[id] = null;
     const howName = d.slice(4) === 'crypto' ? 'Crypto' : d.slice(4) === 'bank' ? 'Bank transfer' : 'Remitly';
     const t = tiers().find(x => x.id === w.tier);
-    const o = { code: newCode(), who: id, name: w.name, tier: w.tier, label: t.label, price: t.price, address: w.addr, how: howName, state: 'new', when: Date.now() };
+    const o = { code: newCode(), who: id, name: w.name, tier: w.tier, label: t.label, price: t.price, address: w.addr || '', how: howName, state: 'new', when: Date.now() };
     db.orders.push(o); keep();
     await say(id, '✅ <b>ORDER ' + o.code + '</b>\n\n' + t.label + ' - ' + money(t.price) + '\nBy <b>' + howName + '</b>\n\nPayment details coming now. Send proof once paid and it goes out same day.');
     if (GROUP) say(GROUP, '🔔 <b>NEW ORDER ' + o.code + '</b>\n\n' + e(t.label) + ' - <b>' + money(t.price) + '</b>\n👤 ' + e(o.name) + '\n📍 ' + e(o.address) + '\n💳 ' + e(howName) + '\n\n<b>TAP WHAT IS HAPPENING 👇</b>', {
