@@ -150,7 +150,7 @@ async function tapped(cb) {
   if (d === 'prices') return edit('<b>PRICES</b>\n\n' + tiers().map(t => '<b>' + t.label + '</b> - ' + money(t.price) + (db.out[t.id] ? '  ❌ SOLD OUT' : '') + '\n<i>cashes out ' + t.cash + '</i>').join('\n\n') + '\n\nAll posted out. Pay by crypto, bank or Remitly.', menu());
   if (d === 'how') return edit(HOWTO, menu());
   if (d === 'vouch') return edit('<b>VOUCHES</b>\n\nReal feedback goes up in the group. We do not chase reviews.', menu());
-  if (d === 'info') return edit('<b>POSTAGE</b>\n\nPosted out tracked, next working day.\n\n<b>PAYMENT</b>\n\nCrypto, bank transfer or Remitly. Details sent the second you order.\n\n<b>AFTER PAYING</b>\n\nCard and PIN out same day. Then follow <b>How to use it</b>.', menu());
+  if (d === 'info') return edit('<b>POSTAGE</b>\n\nPosted out tracked, next working day.\n\n<b>PAYMENT</b>\n\nCrypto, bank transfer or Remitly. Jiffy messages you the details straight after you order.\n\n<b>AFTER PAYING</b>\n\nCard and PIN out same day. Then follow <b>How to use it</b>.', menu());
   if (d === 'menu') return edit(openLine(), menu());
   if (d === 'shop') return p && edit('<b>PICK YOUR TIER</b>\n\n<b>Tap one 👇</b>', { inline_keyboard: tiers().map(t => [{ text: t.label + ' - ' + money(t.price) + (db.out[t.id] ? ' ❌' : ''), callback_data: 'pick:' + t.id }]).concat([[{ text: '⬅️  BACK', callback_data: 'menu' }]]) });
 
@@ -170,7 +170,7 @@ async function tapped(cb) {
     const t = tiers().find(x => x.id === w.tier);
     const o = { code: newCode(), who: id, name: w.name, tier: w.tier, label: t.label, price: t.price, address: w.addr || '', how: howName, state: 'new', when: Date.now() };
     db.orders.push(o); keep();
-    await say(id, '✅ <b>ORDER ' + o.code + '</b>\n\n' + t.label + ' - ' + money(t.price) + '\nBy <b>' + howName + '</b>\n\nPayment details coming now. Send proof once paid and it goes out same day.');
+    await say(id, '✅ <b>ORDER ' + o.code + '</b>\n\n' + t.label + ' - ' + money(t.price) + '\nBy <b>' + howName + '</b>\n\nJiffy will message you the payment details as soon as possible. Once paid, send the proof and it goes out same day.');
     if (GROUP) say(GROUP, '🔔 <b>NEW ORDER ' + o.code + '</b>\n\n' + e(t.label) + ' - <b>' + money(t.price) + '</b>\n👤 ' + e(o.name) + '\n📍 ' + e(o.address) + '\n💳 ' + e(howName) + '\n\n<b>TAP WHAT IS HAPPENING 👇</b>', {
       reply_markup: { inline_keyboard: [
         [{ text: '✅  TAKE IT', callback_data: 'o:' + o.code + ':taken' }],
