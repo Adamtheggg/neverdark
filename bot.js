@@ -6,6 +6,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -102,12 +103,13 @@ async function loadState() {
 }
 
 const q = []; let busySend = false;
+const asMarkup = x => (!x ? null : (x.inline_keyboard || x.reply_markup) ? x : { inline_keyboard: x });
 const say = (to, text, extra) => new Promise(r => { q.push({ to, text, extra, r }); pump(); });
 async function pump() {
   if (busySend || !q.length) return; busySend = true;
   while (q.length) {
     const j = q.shift();
-    try { j.r(await api('sendMessage', { chat_id: j.to, text: j.text, parse_mode: 'HTML', disable_web_page_preview: true, ...(j.extra || {}) })); }
+    try { j.r(await api('sendMessage', Object.assign({ chat_id: j.to, text: j.text, parse_mode: 'HTML', disable_web_page_preview: true }, asMarkup(j.extra)))); }
     catch { j.r(null); }
     await new Promise(r => setTimeout(r, 60 + Math.random() * 90));
     await new Promise(r => setTimeout(r, 80 + Math.random() * 120));
