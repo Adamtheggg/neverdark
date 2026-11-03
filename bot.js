@@ -1,3 +1,4 @@
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -117,8 +118,8 @@ async function incoming(m) {
  if (j.pay) Object.assign(db.pay, j.pay);
  if (j.photos) Object.assign(db.photos, j.photos);
  keep();
- return say(id, '✅ Restored.', bossMenu());
- } catch { return say(id, 'That did not parse. Paste the whole line starting with {'); }
+ return say(id, 'Restored.', bossMenu());
+ } catch { return say(id, 'That did not parse.'); }
  }
  if (w.what === 'voucher') { wait[id] = null; if (GROUP) say(GROUP, '⭐ <b>Vouch</b>\n“' + e(t) + '”\n<i>from a buyer</i>'); return say(id, 'Thank you 🙏'); }
     if (w.what === 'paydetail') {
@@ -164,7 +165,7 @@ async function incoming(m) {
   if (t === '/id') return say(id, 'Chat id: <code>' + m.chat.id + '</code>');
   if (boss(id) && t === '/broadcast') return say(id, 'Use /admin then MESSAGE EVERYONE.');
   if (boss(id) && t === '/photos') return say(id, '<b>TIER PHOTOS</b>\n\n' + tiers().map(x => (db.photos[x.id] ? '✅ ' : '❌ ') + x.label).join('\n') + '\n\n<b>Send a photo here with the tier name as the caption.</b> Like: STARTER');
-  if (boss(id) && t === '/backup') return say(id, '💾 <b>BACKUP</b> - save this somewhere, send it back with /restore after any redeploy:\n\n<code>' + e(JSON.stringify({ price: db.price, pay: db.pay, photos: db.photos })) + '</code>');
+  if (boss(id) && t === '/backup') return say(id, 'BACKUP - save this somewhere, send it back with /restore after any redeploy:\n\n<code>' + e(JSON.stringify({ price: db.price, pay: db.pay, photos: db.photos })) + '</code>');
   if (boss(id) && t === '/restore') { wait[id] = { what: 'restore' }; return say(id, 'Paste the backup line.'); }
   if (boss(id) && t === '/setpay') return say(id, '<b>PAYMENT DETAILS</b>\n\n' + ['crypto', 'bank', 'remitly'].map(x => '<b>' + PAYNAME[x] + '</b>: ' + (db.pay[x] ? 'set ✅' : 'not set ❌')).join('\n') + '\n\n<b>Tap the one to set 👇</b>', { inline_keyboard: ['crypto', 'bank', 'remitly'].map(x => [{ text: (db.pay[x] ? '✅ ' : '') + PAYNAME[x], callback_data: 'b:pd:' + x }]).concat([[{ text: '⬅️  BACK', callback_data: 'b:home' }]]) });
   if (!p) return;
@@ -295,7 +296,7 @@ async function loop() {
     { command: 'id', description: 'Chat id' }
   ]});
   http.createServer((_, r) => r.end('ok')).listen(process.env.PORT || 3000);
-  if (firstBoot && BOSS[0]) say(BOSS[0], '⚠️ Settings were reset by the deploy. If you saved a /backup, paste it back with /restore.');
+  if (firstBoot && BOSS[0]) say(BOSS[0], 'WARNING: settings were reset by the deploy. Paste your /backup back with /restore.');
  console.log('running @' + BOTNAME + ' boss=' + (BOSS.join(',') || 'NONE') + ' group=' + (GROUP || 'NONE'));
   loop();
 })();
