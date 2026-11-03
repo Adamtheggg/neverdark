@@ -2,6 +2,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -351,10 +352,12 @@ async function loop() {
     { command: 'id', description: 'Chat id' }
   ]});
   restoring = true;
-  if (await loadState()) firstBoot = false;
+  const hadState = await loadState();
   restoring = false;
+  if (hadState) firstBoot = false;
+  else if (STORE) saveState();
   http.createServer((_, r) => r.end('ok')).listen(process.env.PORT || 3000);
   if (firstBoot && BOSS[0]) say(BOSS[0], 'WARNING: settings were reset by the deploy and there was no saved copy to read. Paste your /backup back with /restore.');
- console.log('running @' + BOTNAME + ' boss=' + (BOSS.join(',') || 'NONE') + ' group=' + (GROUP || 'NONE'));
+ console.log('running @' + BOTNAME + ' boss=' + (BOSS.join(',') || 'NONE') + ' group=' + (GROUP || 'NONE') + ' store=' + (STORE || 'NONE') + ' stateLoaded=' + hadState);
   loop();
 })();
