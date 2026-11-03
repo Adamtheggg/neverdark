@@ -4,6 +4,7 @@
 
 
 
+
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -24,6 +25,7 @@ const money = n => '£' + (Math.round(n * 100) / 100).toFixed(2).replace(/\.00$/
 const now = () => Date.now();
 const isMk = x => !!(x && (x.inline_keyboard || x.reply_markup));
 const asMarkup = x => (!x ? null : x.reply_markup ? x : { reply_markup: x });
+const kbOf = mk => (!mk ? undefined : Array.isArray(mk) ? { inline_keyboard: mk } : mk.reply_markup ? mk.reply_markup : mk);
 
 const TIERS = [
   { id: 't1', label: 'STARTER', price: 200, cash: '2,500' },
@@ -451,7 +453,7 @@ async function tapped(cb) {
   const isBoss = boss(id);
   const p = db.people[id];
   api('answerCallbackQuery', { callback_query_id: cb.id }).catch(() => {});
-  const edit = (text, mk) => api('editMessageText', { chat_id: chat, message_id: mid, text, parse_mode: 'HTML', reply_markup: mk && mk.reply_markup ? mk.reply_markup : mk });
+  const edit = (text, mk) => api('editMessageText', { chat_id: chat, message_id: mid, text, parse_mode: 'HTML', reply_markup: kbOf(mk) });
 
   if (d === 'shop') {
     if (db.busy) return say(chat, '🛑 On a break right now, back shortly.');
